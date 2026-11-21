@@ -1,5 +1,17 @@
 {
-  "navy": "#101D47", "paper": "#F5F6FB", "card": "#FFFFFF",
-  "coral": "#FF6B6B", "amber": "#FFB53A", "green": "#2DCC70",
-  "blue": "#1EA6F0", "violet": "#9B6BFF", "edge": "#E5E6EB"
+  "navy": "#101D47",
+  "paper": "#F5F6FB",
+  "card": "#FFFFFF",
+  "coral": "#FF6B6B",
+  "amber": "#FFB53A",
+  "green": "#2DCC70",
+  "blue": "#1EA6F0",
+  "violet": "#9B6BFF",
+  "edge": "#E5E6EB",
+  "weak": "#7839DB",
+  "indigo": "#385BE9",
+  "aqua": "#008FC1",
+  "leaf": "#1CAA68",
+  "gold": "#EDAC13",
+  "strong": "#E53542"
 }

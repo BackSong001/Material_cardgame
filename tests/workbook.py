@@ -27,7 +27,25 @@ class DeckTests(unittest.TestCase):
     def test_mapping(self):
         cards = self.read()
         self.assertEqual(len(cards),20)
-        self.assertEqual(cards[5],('W','W',4,(405.,511.,650.),(7.,11.,11.)))
+        self.assertIn(('W','W',4,(405.,511.,650.),(7.,11.,11.)),cards)
+
+    def test_release_workbook(self):
+        path = Path(__file__).resolve().parents[1]/'testset_6_div_max.xlsx'
+        cards = workbook(path)
+        self.assertEqual(cards, workbook(path))
+        from openpyxl import load_workbook
+        original = load_workbook(path,read_only=True,data_only=True)
+        try:
+            rows = list(original['Sheet1'].values)
+            for kind,sheet,line,x,y in cards:
+                self.assertEqual(sheet,'Sheet1')
+                self.assertEqual(rows[line-1][rows[0].index('Material')],kind)
+                self.assertEqual(x,tuple(float(v[:-2]) for v in rows[0][:500]))
+                self.assertEqual(y,tuple(rows[line-1][:500]))
+            for kind in KINDS:
+                self.assertEqual(sum(record[0]==kind for record in cards),4)
+        finally:
+            original.close()
 
     def test_collision(self):
         self.book['W']['A2']=0
@@ -42,8 +60,8 @@ class DeckTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Cu!3'): self.read()
 
     def test_header(self):
-        self.book['Ti']['C1']=405
-        with self.assertRaisesRegex(ValueError,'Ti!1'): self.read()
+        self.book['Al']['C1']=405
+        with self.assertRaisesRegex(ValueError,'Al!1'): self.read()
 
 
 if __name__=='__main__':
