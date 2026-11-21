@@ -1,0 +1,7 @@
+#include <windows.h>
+100 DIALOGEX 0,0,600,360
+STYLE DS_SETFONT | WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN
+CAPTION "Material Classifier"
+FONT 10,"Malgun Gothic"
+BEGIN
+END
