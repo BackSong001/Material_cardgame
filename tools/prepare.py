@@ -1,4 +1,5 @@
 """Build the embedded spectrum deck and Win32 palette."""
+from bisect import bisect_left
 import re
 import json
 import math
@@ -20,10 +21,71 @@ def numbers(cells, where):
         raise ValueError(f'{where}: 숫자가 누락되었거나 유효하지 않습니다.') from None
 
 
+# Compare vertical positions at roughly one sample per thumbnail pixel.
+DISPLAY_GRID = range(200, 1001, 4)
+MIN_RMS_GAP = 0.08
+DEFAULT_WORKBOOK = ROOT/'testset_5_x100.xlsx'
+
+
+def display_shape(x, y):
+    low, high = min(0., min(y)), max(0., max(y))
+    height = high - low or 1.
+    shape = []
+    for wave in DISPLAY_GRID:
+        i = bisect_left(x, wave)
+        if i == len(x) or wave < x[0]:
+            shape.append(0.)
+            continue
+        value = y[i]
+        if wave != x[i]:
+            fraction = (wave - x[i-1]) / (x[i] - x[i-1])
+            value = y[i-1] + fraction * (y[i] - y[i-1])
+        shape.append((value - low) / height)
+    return shape
+
+
+def select_deck(candidates, kinds):
+    shapes = [display_shape(x, y) for _, _, _, x, y in candidates]
+    groups = {k: [] for k in kinds}
+    for index, card in enumerate(candidates):
+        if card[0] not in groups:
+            raise ValueError(f'{card[0]}: 덱 구성에 없는 물질입니다.')
+        groups[card[0]].append(index)
+    for kind, group in groups.items():
+        if len(group) < 4:
+            raise ValueError(f'{kind}: 고유 샘플 4개가 필요합니다.')
+
+    # Try one starting point per material so file order has less influence.
+    best_gap, best = -1., []
+    for group in groups.values():
+        chosen = []
+        counts = dict.fromkeys(kinds, 0)
+        nearest = [math.inf] * len(candidates)
+        index = group[0]
+        gap = math.inf
+        while True:
+            chosen.append(index)
+            counts[candidates[index][0]] += 1
+            if len(chosen) == 4 * len(kinds):
+                break
+            eligible = [i for k, members in groups.items() if counts[k] < 4
+                        for i in members if i not in chosen]
+            for i in eligible:
+                nearest[i] = min(nearest[i], math.dist(shapes[i], shapes[index]))
+            index = max(eligible, key=nearest.__getitem__)
+            gap = min(gap, nearest[index])
+        if gap > best_gap:
+            best_gap, best = gap, chosen
+    rms = best_gap / math.sqrt(len(DISPLAY_GRID))
+    if rms < MIN_RMS_GAP:
+        raise ValueError(f'선정된 카드의 최소 곡선 차이 {rms:.1%}가 기준 {MIN_RMS_GAP:.0%} 미만입니다.')
+    return [candidates[i] for i in best]
+
+
 def workbook(path):
     from openpyxl import load_workbook
     book = load_workbook(path, read_only=True, data_only=True)
-    selected, seen = [], {}
+    candidates, seen = [], {}
     def extract(sheet, header, rows, fixed_kind=None):
         if fixed_kind is None:
             material = header.index('Material')
@@ -54,8 +116,7 @@ def workbook(path):
                     raise ValueError(f'{where}: {origin}와 동일한 스펙트럼입니다.')
                 continue
             seen[key] = kind, where
-            if sum(c[0] == kind for c in selected) < 4:
-                selected.append((kind,sheet,line,x,y))
+            candidates.append((kind,sheet,line,x,y))
     try:
         if len(book.sheetnames) == 1:
             sheet = book.active
@@ -73,20 +134,15 @@ def workbook(path):
                     raise ValueError(f'{kind}: 해당 시트가 정확히 하나 필요합니다.')
                 rows = iter(book[sheets[0]].values)
                 extract(sheets[0], list(next(rows, ())), rows, kind)
-        for kind in kinds:
-            if sum(c[0] == kind for c in selected) != 4:
-                raise ValueError(f'{kind}: 고유 샘플 4개가 필요합니다.')
-        if len(selected) != 20:
-            raise ValueError('5종 20장이 필요합니다.')
     finally:
         book.close()
     # Fixed exhibition layout. Separate adjacent samples of the same material.
     positions = [0,5,10,15,16,9,18,3,12,7,14,1,17,6,11,19,8,13,4,2]
-    by_kind = sorted(selected, key=lambda card: kinds.index(card[0]))
+    by_kind = sorted(select_deck(candidates, kinds), key=lambda card: kinds.index(card[0]))
     return [by_kind[i] for i in positions]
 
 
-def generate(dest, source=ROOT/'testset_6_div_max.xlsx'):
+def generate(dest, source=DEFAULT_WORKBOOK):
     cards = workbook(source)
     def vector(values):
         return '{' + ','.join(map(repr,values)) + '}'

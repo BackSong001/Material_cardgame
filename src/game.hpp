@@ -13,7 +13,7 @@ struct Card {
     size_t peak() const { return std::max_element(y.begin(),y.end())-y.begin(); }
 };
 #include "deck.inc"
-constexpr const wchar_t* names[]{L"Copper", L"Tungsten", L"Aluminum", L"Silicon Dioxide", L"Silicon Nitride", L"Titanium"};
+constexpr const wchar_t* names[]{L"Cu", L"W", L"Al", L"SiO₂", L"Si₃N₄", L"Ti"};
 struct Game {
     int slot=-1;
     bool back=false;

@@ -26,8 +26,8 @@ void line(HDC dc,int x,int y,int u,int v,COLORREF c,int width=1,int style=PS_SOL
     MoveToEx(dc,x,y,nullptr); LineTo(dc,u,v);
     SelectObject(dc,old); DeleteObject(pen);
 }
-void label(HDC dc,RECT r,const std::wstring& s,int size,bool bold=false,UINT align=DT_LEFT,COLORREF color=navy) {
-    auto font=CreateFontW(-px(size),0,0,0,bold?FW_BOLD:FW_NORMAL,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Malgun Gothic");
+void label(HDC dc,RECT r,const std::wstring& s,int size,UINT align=DT_LEFT,COLORREF color=navy) {
+    auto font=CreateFontW(-px(size),0,0,0,FW_BOLD,0,0,0,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
     auto old=SelectObject(dc,font);
     SetTextColor(dc,color); SetBkMode(dc,TRANSPARENT);
     DrawTextW(dc,s.c_str(),-1,&r,align|DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);
@@ -56,18 +56,32 @@ void chart(HDC dc,RECT area,const Card& c,bool large) {
     auto y=[&](double z){return b-int((z-lo)/(hi-lo)*(b-t));};
     line(dc,l,t,l,b,edge); line(dc,l,y(0),r,y(0),navy);
     if(large) {
-        label(dc,{area.left+px(16),area.top,r,area.top+px(22)},L"산란광 세기",15);
+        {
+            using namespace Gdiplus;
+            Graphics graphics(dc);
+            graphics.TranslateTransform(REAL((area.left+l)/2),REAL((t+b)/2));
+            graphics.RotateTransform(-90);
+            FontFamily family(L"Segoe UI");
+            Font font(family.IsAvailable()?&family:FontFamily::GenericSansSerif(),
+                      REAL(px(15)),FontStyleBold,UnitPixel);
+            StringFormat format;
+            format.SetAlignment(StringAlignmentCenter);
+            format.SetLineAlignment(StringAlignmentCenter);
+            Color ink;
+            ink.SetFromCOLORREF(navy);
+            SolidBrush brush(ink);
+            graphics.DrawString(L"Scattered Light Intensity",-1,&font,PointF(0,0),&format,&brush);
+        }
         for(double value : {lo,(lo+hi)/2,hi}) {
             int tick=y(value);
-            label(dc,{area.left,tick-px(12),l-px(7),tick+px(12)},number(value),13,false,DT_RIGHT);
             if(value!=0) line(dc,l,tick,r,tick,edge);
         }
         for(int wave=xMin;wave<=xMax;wave+=200) {
             int tick=std::lround(x(wave));
             if(wave!=xMin && wave!=xMax) line(dc,tick,t,tick,b,edge);
-            label(dc,{tick-px(42),b+px(4),tick+px(42),b+px(26)},number(wave),14,false,DT_CENTER);
+            label(dc,{tick-px(42),b+px(4),tick+px(42),b+px(26)},number(wave),14,DT_CENTER);
         }
-        label(dc,{l,b+px(31),r,area.bottom},L"입사광 파장 (nm)",16,false,DT_CENTER);
+        label(dc,{l,b+px(31),r,area.bottom},L"Incident Wavelength (nm)",16,DT_CENTER);
     }
     size_t p=c.peak();
     const bool peakVisible=c.x[p]>=xMin && c.x[p]<=xMax;
@@ -97,10 +111,10 @@ void chart(HDC dc,RECT area,const Card& c,bool large) {
     Ellipse(dc,peakX-a,y(c.y[p])-a,peakX+a+1,y(c.y[p])+a+1); SelectObject(dc,brush);
     int width=std::min(r-l,px(large?180:115));
     int left=std::clamp(peakX-width/2,l,r-width);
-    label(dc,{left,y(c.y[p])-px(large?32:21),left+width,y(c.y[p])-a},number(c.x[p])+L" nm",large?17:12,true,DT_CENTER);
+    label(dc,{left,y(c.y[p])-px(large?32:21),left+width,y(c.y[p])-a},number(c.x[p])+L" nm",large?17:12,DT_CENTER);
 }
 std::wstring tileName(int i) {
-    return (i<9?L"0":L"")+std::to_wstring(i+1)+L"   산란광 스펙트럼 세기";
+    return (i<9?L"0":L"")+std::to_wstring(i+1)+L"   Scattering Spectrum";
 }
 void draw(const DRAWITEMSTRUCT& d) {
     RECT r=d.rcItem;
@@ -116,7 +130,7 @@ void draw(const DRAWITEMSTRUCT& d) {
         SelectObject(dc,brush); SelectObject(dc,pen);
         wchar_t caption[64]{};
         GetWindowTextW(d.hwndItem,caption,64);
-        label(dc,r,caption,16,true,DT_CENTER,primary?card:navy);
+        label(dc,r,caption,16,DT_CENTER,primary?card:navy);
         if(d.itemState&ODS_FOCUS) { InflateRect(&r,-px(5),-px(5)); DrawFocusRect(dc,&r); }
         return;
     }
@@ -128,11 +142,12 @@ void draw(const DRAWITEMSTRUCT& d) {
     RECT heading=r;
     heading.left+=px(10); heading.right-=px(10); heading.bottom=r.top+px(small?28:64);
     if(small) {
-        label(dc,heading,tileName(i).substr(0,2),14,true);
-        label(dc,heading,L"산란광 스펙트럼 세기",14,true,DT_CENTER);
-    } else label(dc,heading,game.back?L"Material":L"산란광 스펙트럼 세기",26,true,DT_CENTER);
+        label(dc,heading,tileName(i).substr(0,2),14);
+        heading.left+=px(24);
+        label(dc,heading,L"Scattering Spectrum",14,DT_CENTER);
+    } else label(dc,heading,game.back?L"Material":L"Scattering Spectrum",26,DT_CENTER);
     RECT plot=r; plot.top=heading.bottom+(small?px(7):0);
-    if(!small && game.back) label(dc,plot,names[c.kind],36,true,DT_CENTER);
+    if(!small && game.back) label(dc,plot,names[c.kind],36,DT_CENTER);
     else chart(dc,plot,c,!small);
     if(d.itemState&ODS_FOCUS) { InflateRect(&r,-3,-3); DrawFocusRect(dc,&r); }
 }
@@ -158,11 +173,10 @@ void layout() {
     place(detail,left,top,w-2*left,bottom-top-px(54),!grid);
     place(flip,w/2-px(174),bottom-px(40),px(168),px(40),!grid);
     place(board,w/2+px(6),bottom-px(40),px(168),px(40),!grid);
-    SetDlgItemTextW(win,flip,game.back?L"View spectrum":L"정답 보기");
-    SetDlgItemTextW(win,board,game.back?L"Back to board":L"보드로 돌아가기");
+    SetDlgItemTextW(win,flip,game.back?L"View spectrum":L"Show answer");
     if(!grid) {
         const auto& c=cards[game.slot];
-        std::wstring desc=game.back?names[c.kind]:L"산란광 스펙트럼 세기, 피크 "+number(c.x[c.peak()])+L" nm";
+        std::wstring desc=game.back?names[c.kind]:L"Scattering Spectrum, peak "+number(c.x[c.peak()])+L" nm";
         SetDlgItemTextW(win,detail,desc.c_str());
     }
     RedrawWindow(win,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN);
@@ -177,7 +191,7 @@ INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM wp,LPARAM lp) {
         };
         for(int i=0;i<20;++i) add(tile+i,L"BUTTON",L"",BS_OWNERDRAW|WS_TABSTOP);
         add(detail,L"STATIC",L"",SS_OWNERDRAW);
-        add(flip,L"BUTTON",L"",BS_OWNERDRAW|WS_TABSTOP); add(board,L"BUTTON",L"보드로 돌아가기",BS_OWNERDRAW|WS_TABSTOP);
+        add(flip,L"BUTTON",L"",BS_OWNERDRAW|WS_TABSTOP); add(board,L"BUTTON",L"Back to board",BS_OWNERDRAW|WS_TABSTOP);
         ShowWindow(h,SW_SHOWMAXIMIZED); layout(); SetFocus(GetDlgItem(h,tile)); return FALSE;
     }
     case WM_GETMINMAXINFO: {
@@ -190,11 +204,11 @@ INT_PTR CALLBACK dialog(HWND h,UINT msg,WPARAM wp,LPARAM lp) {
     case WM_PAINT: {
         PAINTSTRUCT ps; HDC dc=BeginPaint(h,&ps); RECT r; GetClientRect(h,&r);
         fill(dc,r,paper); RECT bar=r; bar.bottom=px(68); fill(dc,bar,navy);
-        label(dc,{px(20),0,r.right/2,bar.bottom},L"Material Classifier",30,true,DT_LEFT,card);
+        label(dc,{px(20),0,r.right/2,bar.bottom},L"Material Classifier",30,DT_LEFT,card);
         int right=r.right-px(20), center=bar.bottom/2, width=px(110);
-        label(dc,{right-width-px(150),0,right-width-px(38),bar.bottom},game.back?L"Intensity":L"산란광 세기",14,false,DT_RIGHT,card);
-        label(dc,{right-width-px(36),0,right-width,bar.bottom},game.back?L"Low":L"낮음",13,false,DT_CENTER,card);
-        label(dc,{right-px(28),0,right,bar.bottom},game.back?L"High":L"높음",13,false,DT_RIGHT,card);
+        label(dc,{right-width-px(150),0,right-width-px(38),bar.bottom},L"Intensity",14,DT_RIGHT,card);
+        label(dc,{right-width-px(36),0,right-width,bar.bottom},L"Low",13,DT_CENTER,card);
+        label(dc,{right-px(28),0,right,bar.bottom},L"High",13,DT_RIGHT,card);
         {
             using namespace Gdiplus;
             Graphics g(dc);
@@ -227,7 +241,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     Gdiplus::GdiplusStartupInput input;
     ULONG_PTR token;
     if(Gdiplus::GdiplusStartup(&token,&input,nullptr)!=Gdiplus::Ok) {
-        MessageBoxW(nullptr,L"그래픽 기능을 초기화할 수 없습니다.",L"Material Classifier",MB_ICONERROR);
+        MessageBoxW(nullptr,L"Unable to initialize graphics.",L"Material Classifier",MB_ICONERROR);
         return 1;
     }
     int result=DialogBoxW(instance,MAKEINTRESOURCEW(100),nullptr,dialog)==-1;
