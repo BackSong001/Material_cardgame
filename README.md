@@ -1,4 +1,4 @@
-# Material Classifier
+# Material CardGame
 
 Windows 10·11 x64에서 [MaterialCardGame.exe](dist/MaterialCardGame.exe)를 실행하세요. 보드의 카드 하나를 골라 파장별 산란광 세기를 비교해 보세요. 보라색은 낮은 세기, 빨간색은 피크를 나타냅니다. **Show answer**로 물질을 확인하고 **Back to board**로 다른 카드를 선택할 수 있습니다. Tab과 Space로도 조작할 수 있습니다.
 
