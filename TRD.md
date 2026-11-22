@@ -12,7 +12,7 @@ python3 -m venv /tmp/material-env
 PYTHON=/tmp/material-env/bin/python ./build.sh
 ```
 
-다른 입력은 마지막 명령 뒤에 .xlsx 경로를 추가한다. 데이터 검증에 실패하면 기존 배포 파일을 보존한다. 성공하면 dist/MaterialClassifier.exe에 데이터와 팔레트가 포함된다.
+다른 입력은 마지막 명령 뒤에 .xlsx 경로를 추가한다. 데이터 검증에 실패하면 기존 배포 파일을 보존한다. 성공하면 dist/MaterialCardGame.exe에 데이터와 팔레트가 포함된다.
 
 ## 화면과 검증
 
